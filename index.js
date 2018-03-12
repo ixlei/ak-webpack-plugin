@@ -9,8 +9,7 @@ const fs = require('fs-extra'),
 	  path = require('path'),
 	  archiver = require('archiver'),
 	  chalk = require('chalk'),
-	  minimatch = require('minimatch'),
-	  glob = require('glob');
+	  minimatch = require('minimatch');
 
 String.prototype.replaceAll = function(search, replacement) {
     var target = this;
@@ -67,11 +66,7 @@ function AkWebpackPlugin(opts) {
 	this.config.afterCopy = opts.afterCopy || emptyFunc;
 	this.config.beforeZip = opts.beforeZip || emptyFunc;
 	this.config.afterZip = opts.afterZip || emptyFunc;
-	this.fs = fs;
-	this.config.minimatchOpt = Object.assign({
-		matchBase: true,
-		dot: true
-	}, opts.minimatchOpt || {});
+	this.config.copyFilesHook = opts.copyFilesHook;
 }
 
 AkWebpackPlugin.prototype.apply = function(compiler) {
@@ -137,11 +132,12 @@ AkWebpackPlugin.prototype.addDestUrl = function() {
 /**
  * [copy files to offline folder]
  */
-AkWebpackPlugin.prototype.copyFiles = function() {
+AkWebpackPlugin.prototype.copyFiles = function(cb) {
 
 	var beforeCopy = this.config.beforeCopy,
-		afterCopy = this.config.afterCopy;
-	
+		afterCopy = this.config.afterCopy,
+		copyFilesHook = this.config.copyFilesHook;
+
 	beforeCopy.bind(this)();
 
 	let cwd = process.cwd();
@@ -156,15 +152,46 @@ AkWebpackPlugin.prototype.copyFiles = function() {
 			dest = item.dest || "";
 
 		let destPath = path.resolve(cwd, this.config.zipFileName, url, dest);
-		
-		if (fs.existsSync(srcPath)) {
-			fs.copySync(srcPath, destPath);
+
+		if(typeof copyFilesHook === 'function') {
+			walkHandleFiles(srcPath, srcPath);
+			function walkHandleFiles(srcPath, cwd) {
+				let walkFiles = klawSync(srcPath);
+				walkFiles.forEach((item) => {
+					if(item.stats.isFile()) {
+						let content,
+							extnameRegExp = /(\.js$)|(\.css$)|(\.html$)/g;
+						if(extnameRegExp.test(item.path)) {
+							content = copyFilesHook({
+								content: fs.readFileSync(item.path, 'utf-8'),
+								path: item.path
+							});
+						} else {
+							content = fs.readFileSync(item.path);
+						}
+							
+						let filePath = path.relative(cwd, item.path);
+						fs.outputFileSync(path.join(destPath, filePath), content, {
+							encoding: 'utf-8'
+						});
+					} else {
+						walkHandleFiles(item.path, cwd)
+					}
+				});
+			}
+			
+		} else {
+			if (fs.existsSync(srcPath)) {
+				fs.copySync(srcPath, destPath);
+			}
 		}
+		
 		
 	});
 
 	afterCopy.bind(this)();
 };
+
 
 /**
  * [remove exclude folder or files]
@@ -196,7 +223,10 @@ AkWebpackPlugin.prototype.excludeFiles = function() {
 		walkFiles.forEach((file) => {
 			// loop through exclude files patterns
 			item.exclude.forEach((match) => {
-				if (minimatch(file.path, match, this.config.minimatchOpt)) {
+				if (minimatch(file.path, match, {
+					matchBase: true,
+					dot: true
+				})) {
 					if (fs.existsSync(file.path)) {
 						fs.removeSync(file.path);
 					}
@@ -262,17 +292,6 @@ AkWebpackPlugin.prototype.replaceUrl = function() {
 	}
 };
 
-AkWebpackPlugin.prototype.iterateFiles = function(folderPath, cb) {
-	let files = glob.sync(path.resolve(folderPath, '**/*'));
-
-	files = files.filter((item) => {
-		let fileInfo = fs.lstatSync(path.resolve(item));
-		return fileInfo.isFile();
-	});
-
-	cb && cb.bind(this)(files);
-};
-
 /**
  * [zip files]
  */
@@ -289,8 +308,7 @@ AkWebpackPlugin.prototype.zipFiles = function() {
 		return;
 	}
 
-	// beforeZip();
-	this.iterateFiles(this.config.zipFileName, beforeZip);
+	beforeZip();
 
 	var output = fs.createWriteStream(zipPath);
 	var archive = archiver('zip', this.config.zipConfig);
@@ -332,7 +350,7 @@ AkWebpackPlugin.prototype.zipFiles = function() {
 
 	archive.finalize();
 
-	afterZip.bind(this)(`${zipFile}.zip`);
+	afterZip();
 
 };
 
