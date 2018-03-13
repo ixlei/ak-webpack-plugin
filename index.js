@@ -150,27 +150,34 @@ AkWebpackPlugin.prototype.copyFiles = function(cb) {
 
 		let url = item.destUrl.replace("http://", "").replace("https://", "").replace("//", "").replace(":", "/"),
 			dest = item.dest || "";
-
+		console.log(url, '====================')
 		let destPath = path.resolve(cwd, this.config.zipFileName, url, dest);
+		let _self = this;
 
 		if(typeof copyFilesHook === 'function') {
 			walkHandleFiles(srcPath, srcPath);
+			
 			function walkHandleFiles(srcPath, cwd) {
 				let walkFiles = klawSync(srcPath);
 				walkFiles.forEach((item) => {
 					if(item.stats.isFile()) {
 						let content,
-							extnameRegExp = /(\.js$)|(\.css$)|(\.html$)/g;
+							extnameRegExp = /(\.js$)|(\.html$)/g;
 						if(extnameRegExp.test(item.path)) {
-							content = copyFilesHook({
+							 let files = copyFilesHook({
 								content: fs.readFileSync(item.path, 'utf-8'),
 								path: item.path
 							});
+							content = files.content;
+							console.log(files.destPath, _self.config.zipFileName)
+							destPath = path.resolve(process.cwd(), _self.config.zipFileName, files.destPath.replace('//', '')) || destPath;
+						
 						} else {
 							content = fs.readFileSync(item.path);
 						}
-							
+						
 						let filePath = path.relative(cwd, item.path);
+						console.log(path.join(destPath, filePath))
 						fs.outputFileSync(path.join(destPath, filePath), content, {
 							encoding: 'utf-8'
 						});
