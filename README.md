@@ -53,6 +53,14 @@ plugins: [
         beforeCopy: function() {
             
         },
+        /**
+         * @description 文件拷贝钩子函数
+         * @param {content, path}
+         * @return {outputPath, content}
+         */
+        copyFilesHook: function() {
+
+        },
         // 在 拷贝文件到 offline 离线文件夹之后
         afterCopy: function() {
             
