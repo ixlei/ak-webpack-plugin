@@ -57,9 +57,21 @@ plugins: [
          * @description 文件拷贝钩子函数
          * @param {content, path}
          * @return {outputPath, content}
+         * @example {
+         *     copyFilesHook: function(files) {
+                    let content = ;
+                    if(/\.html$/.test(files.path)) {
+                        content = htmlFileInjectVar(content, '__filine', true)
+                    }
+                    return {
+                        path: newPath,
+                        content
+                    };
+                },
+         * }
          */
-        copyFilesHook: function() {
-
+        copyFilesHook: function(files) {
+           
         },
         // 在 拷贝文件到 offline 离线文件夹之后
         afterCopy: function() {
@@ -76,6 +88,16 @@ plugins: [
         }
 	})
 ]
+
+function htmlFileInjectVar(content, key, value) {
+    let script = '<script>var ' + key  + '=' + value + '</script>' ;
+    let index = content.indexOf('</head>');
+    if(index != -1) {
+        return content = content.substring(0, index) + script + content.substring(index);
+    }
+    return content;
+}
+
 
 ```
 
