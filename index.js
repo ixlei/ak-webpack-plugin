@@ -150,7 +150,6 @@ AkWebpackPlugin.prototype.copyFiles = function(cb) {
 
 		let url = item.destUrl.replace("http://", "").replace("https://", "").replace("//", "").replace(":", "/"),
 			dest = item.dest || "";
-		console.log(url, '====================')
 		let destPath = path.resolve(cwd, this.config.zipFileName, url, dest);
 		let _self = this;
 
@@ -169,7 +168,6 @@ AkWebpackPlugin.prototype.copyFiles = function(cb) {
 								path: item.path
 							});
 							content = files.content;
-							console.log(files.destPath, _self.config.zipFileName)
 							destPath = path.resolve(process.cwd(), _self.config.zipFileName, files.destPath.replace('//', '')) || destPath;
 						
 						} else {
@@ -177,7 +175,6 @@ AkWebpackPlugin.prototype.copyFiles = function(cb) {
 						}
 						
 						let filePath = path.relative(cwd, item.path);
-						console.log(path.join(destPath, filePath))
 						fs.outputFileSync(path.join(destPath, filePath), content, {
 							encoding: 'utf-8'
 						});
